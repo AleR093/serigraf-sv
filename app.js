@@ -896,12 +896,16 @@ function toast(msg, type = '') {
 // ══════════════════════════════════════════════════════
 //  EVENT LISTENERS
 // ══════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', function() {
+async function loadAll() {  // ← BIEN, está afuera
+  // load all needed resources in parallel; keep empty array if none
+  await Promise.all([]);
+  renderAll();
+}
 
-  // Supabase + initial load
+document.addEventListener('DOMContentLoaded', function() {
   initSupabase();
-  // Pequeño delay para que Supabase inicialice la sesión primero
   setTimeout(function() { loadAll(); }, 100);
+
 
   updateBadges();
   setupUploader();
