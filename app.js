@@ -617,3 +617,24 @@ document.addEventListener('DOMContentLoaded', function() {
   loadProducts();
   updateBadges();
 });
+
+window.onload = cargarProductos;
+
+async function saveProd() {
+    const nombre = document.getElementById('nombre-input').value; // Ajusta los IDs a los tuyos
+    const precio = document.getElementById('precio-input').value;
+    const url = document.getElementById('url-input').value;
+    const cat = document.getElementById('p-section').value;
+
+    const { data, error } = await supabase
+        .from('productos')
+        .insert([{ nombre, precio, imagen_url: url, categoria: cat }]);
+
+    if (error) {
+        alert("Error al guardar: " + error.message);
+    } else {
+        alert("¡Producto guardado!");
+        cargarProductos(); // <-- ¡Aquí está la magia! Esto refresca la pantalla sola
+    }
+}
+
