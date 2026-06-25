@@ -4,7 +4,7 @@
 // ══════════════════════════════════════════════════════
 
 // ── CONFIG: CAMBIA ESTOS 3 VALORES ──────────────────
-const SUPABASE_URL = 'sb_publishable_t87hjXCzNjWcABETiQRJUw_3qwK7Ss3'
+const SUPABASE_URL = 'https://xqaqsqumwpkuraiajmrk.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhxYXFzcXVtd3BrdXJhaWFqbXJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NTYxMDksImV4cCI6MjA5NzMzMjEwOX0.-iOoIiCsBSE_vMdJV1QwFL0eNpIFQ3aBF4bjgcIJxjM'
 const WA           = '50375524443'; // sin el +
 // ────────────────────────────────────────────────────
