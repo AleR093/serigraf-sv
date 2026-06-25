@@ -901,7 +901,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Supabase + initial load
   initSupabase();
   // Pequeño delay para que Supabase inicialice la sesión primero
-  setTimeout(() => loadAll(), 100);
+  setTimeout(function() { loadAll(); }, 100);
 
   updateBadges();
   setupUploader();
