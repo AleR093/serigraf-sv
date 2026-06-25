@@ -617,3 +617,50 @@ document.addEventListener('DOMContentLoaded', function() {
   loadProducts();
   updateBadges();
 });
+
+async function cargarProductos() {
+    // 1. Pedimos los productos a la tabla 'productos'
+    const { data, error } = await supabase.from('productos').select('*');
+
+    if (error) {
+        console.error("Error al cargar:", error);
+        return;
+    }
+
+    // 2. Limpiamos el contenedor donde se muestran los productos
+    const contenedor = document.getElementById('cat-row'); // Asegúrate que este sea el ID correcto
+    contenedor.innerHTML = ''; 
+
+    // 3. Dibujamos cada producto en el HTML
+    data.forEach(prod => {
+        const div = document.createElement('div');
+        div.className = 'producto-card'; // Usa la clase CSS que ya tengas
+        div.innerHTML = `
+            <img src="${prod.imagen_url}" alt="${prod.nombre}">
+            <h3>${prod.nombre}</h3>
+            <p>$${prod.precio}</p>
+        `;
+        contenedor.appendChild(div);
+    });
+}
+
+// Ejecutamos esto apenas cargue la página
+window.onload = cargarProductos;
+
+async function saveProd() {
+    const nombre = document.getElementById('nombre-input').value; // Ajusta los IDs a los tuyos
+    const precio = document.getElementById('precio-input').value;
+    const url = document.getElementById('url-input').value;
+    const cat = document.getElementById('p-section').value;
+
+    const { data, error } = await supabase
+        .from('productos')
+        .insert([{ nombre, precio, imagen_url: url, categoria: cat }]);
+
+    if (error) {
+        alert("Error al guardar: " + error.message);
+    } else {
+        alert("¡Producto guardado!");
+        cargarProductos(); // <-- ¡Aquí está la magia! Esto refresca la pantalla sola
+    }
+}
