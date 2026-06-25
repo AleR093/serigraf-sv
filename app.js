@@ -665,7 +665,7 @@ function clearImagePreview() {
 
 async function uploadImageToSupabase(file) {
   if (!db) { toast('Conecta Supabase para subir imágenes', 'err'); return null; }
-  const ext  = file.name.split('.').pop();
+  const ext  = file.name.split('.').pop().toLowerCase();
   const name = `prod_${Date.now()}.${ext}`;
   const prog = document.getElementById('upload-progress');
   const bar  = document.getElementById('progress-bar');
@@ -674,8 +674,15 @@ async function uploadImageToSupabase(file) {
   bar.style.width = '30%';
   stat.textContent = 'Subiendo imagen...';
   try {
+    // Check session first
+    const { data: sessionData } = await db.auth.getSession();
+    if (!sessionData.session) {
+      throw new Error('Debes iniciar sesión para subir imágenes');
+    }
     const { error } = await db.storage.from('productos').upload(name, file, {
-      cacheControl: '3600', upsert: false,
+      cacheControl: '3600',
+      upsert: true, // upsert:true evita error si ya existe el archivo
+      contentType: file.type,
     });
     if (error) throw error;
     bar.style.width = '100%';
@@ -685,7 +692,7 @@ async function uploadImageToSupabase(file) {
     return data.publicUrl;
   } catch(e) {
     prog.style.display = 'none';
-    toast('Error subiendo imagen: ' + e.message, 'err');
+    toast('Error: ' + e.message, 'err');
     return null;
   }
 }
@@ -708,13 +715,21 @@ function openAddProd(prodData) {
   document.getElementById('p-country').value          = editing ? (prodData.country || '') : '';
   document.getElementById('special-tag-field').style.display = (editing && prodData.section === 'special') ? 'block' : 'none';
 
-  clearImagePreview();
+  // Reset file selector but keep existing URL
+  selectedFile = null;
+  const inp = document.getElementById('img-file-input');
+  if (inp) inp.value = '';
   document.getElementById('upload-progress').style.display = 'none';
   if (editing && prodData.image_url) {
+    // Show current image as preview but keep the URL in p-img
     document.getElementById('preview-img').src = prodData.image_url;
-    document.getElementById('preview-name').textContent = 'Imagen actual';
+    document.getElementById('preview-name').textContent = 'Imagen actual (mantener o cambiar abajo)';
     document.getElementById('upload-placeholder').style.display = 'none';
     document.getElementById('upload-preview').style.display = 'block';
+    // p-img already set above with prodData.image_url — don't clear it
+  } else {
+    document.getElementById('upload-placeholder').style.display = 'block';
+    document.getElementById('upload-preview').style.display = 'none';
   }
   openOverlay('aprodOverlay');
 }
@@ -723,10 +738,21 @@ async function saveProd() {
   const id = document.getElementById('edit-id').value;
   let imageUrl = document.getElementById('p-img').value.trim();
 
+  // If editing and no new file selected and p-img is empty, keep existing image
+  if (id && !selectedFile && !imageUrl) {
+    const existing = products.find(p => p.id == id);
+    if (existing) imageUrl = existing.image_url || '';
+  }
+
   // Upload new image if selected
   if (selectedFile) {
     const uploaded = await uploadImageToSupabase(selectedFile);
     if (uploaded) imageUrl = uploaded;
+    // If upload failed, keep existing URL
+    if (!uploaded && id) {
+      const existing = products.find(p => p.id == id);
+      if (existing) imageUrl = existing.image_url || '';
+    }
   }
 
   const prod = {
