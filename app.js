@@ -894,13 +894,63 @@ function toast(msg, type = '') {
 }
 
 // ══════════════════════════════════════════════════════
-//  EVENT LISTENERS
+//  LOAD ALL DATA FROM SUPABASE
 // ══════════════════════════════════════════════════════
-async function loadAll() {  // ← BIEN, está afuera
-  // load all needed resources in parallel; keep empty array if none
-  await Promise.all([]);
+async function loadAll() {
+  await Promise.all([
+    loadProducts(),
+    loadCategories(),
+    loadSpecialConfig(),
+    loadReviews(),
+  ]);
   renderAll();
 }
+
+async function loadCategories() {
+  if (!db) return;
+  try {
+    const { data, error } = await db
+      .from('categories')
+      .select('*')
+      .order('id', { ascending: true });
+    if (!error && data && data.length) categories = data;
+  } catch(e) {}
+}
+
+async function loadSpecialConfig() {
+  if (!db) return;
+  try {
+    const { data, error } = await db
+      .from('settings')
+      .select('value')
+      .eq('key', 'special_section')
+      .single();
+    if (!error && data) {
+      specialCfg = JSON.parse(data.value);
+      localStorage.setItem('sgv_special', data.value);
+    }
+  } catch(e) {}
+}
+
+async function loadReviews() {
+  if (!db) return;
+  try {
+    const { data, error } = await db
+      .from('reviews')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error && data) {
+      reviews = {};
+      data.forEach(r => {
+        if (!reviews[r.product_id]) reviews[r.product_id] = [];
+        reviews[r.product_id].push(r);
+      });
+    }
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════
+//  EVENT LISTENERS
 
 document.addEventListener('DOMContentLoaded', function() {
   initSupabase();
