@@ -664,3 +664,33 @@ async function saveProd() {
         cargarProductos(); // <-- ¡Aquí está la magia! Esto refresca la pantalla sola
     }
 }
+
+// Esta función carga los datos al abrir la web
+async function cargarProductos() {
+    const { data, error } = await supabase.from('productos').select('*');
+    
+    if (error) {
+        console.error("Error al obtener productos:", error);
+        return;
+    }
+
+    const contenedor = document.getElementById('cat-row'); // El div donde van tus productos
+    if (!contenedor) return;
+    
+    contenedor.innerHTML = ''; // Limpiamos antes de dibujar
+
+    data.forEach(prod => {
+        // Aquí construyes el HTML de cada producto
+        const div = document.createElement('div');
+        div.className = 'producto-card';
+        div.innerHTML = `
+            <img src="${prod.imagen_url}" alt="${prod.nombre}">
+            <h3>${prod.nombre}</h3>
+            <p>$${prod.precio}</p>
+        `;
+        contenedor.appendChild(div);
+    });
+}
+
+// IMPORTANTE: Esto asegura que los productos aparezcan al cargar la página
+document.addEventListener('DOMContentLoaded', cargarProductos);
