@@ -664,6 +664,7 @@ async function saveProd() {
         cargarProductos(); // <-- ¡Aquí está la magia! Esto refresca la pantalla sola
     }
 }
+<<<<<<< HEAD
 
 // Esta función carga los datos al abrir la web
 async function cargarProductos() {
@@ -694,3 +695,5 @@ async function cargarProductos() {
 
 // IMPORTANTE: Esto asegura que los productos aparezcan al cargar la página
 document.addEventListener('DOMContentLoaded', cargarProductos);
+=======
+>>>>>>> 6a1073b (Conectando app.js y estructurando la persistencia)
