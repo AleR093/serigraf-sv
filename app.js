@@ -900,7 +900,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Supabase + initial load
   initSupabase();
-  loadAll(); // loads products + categories + special config + reviews from DB
+  // Pequeño delay para que Supabase inicialice la sesión primero
+  setTimeout(() => loadAll(), 100);
 
   updateBadges();
   setupUploader();
