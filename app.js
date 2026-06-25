@@ -103,6 +103,17 @@ function initSupabase() {
   if (SUPABASE_URL.includes('TU_PROYECTO')) return;
   try {
     db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Recuperar sesión guardada automáticamente
+    db.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        isAdmin = true;
+        document.getElementById('auth-btn').textContent = '👑';
+        renderAll();
+      } else {
+        isAdmin = false;
+        document.getElementById('auth-btn').textContent = '👤';
+      }
+    });
   } catch(e) { console.warn('Supabase init failed', e); }
 }
 
@@ -110,16 +121,6 @@ function initSupabase() {
 //  LOAD DATA FROM SUPABASE (fixes the refresh/update bug)
 //  Always fetches fresh from DB — no stale cache
 // ══════════════════════════════════════════════════════
-async function loadAll() {
-  await Promise.all([
-    loadProducts(),
-    loadCategories(),
-    loadSpecialConfig(),
-    loadReviews(),
-  ]);
-  renderAll();
-}
-
 async function loadProducts() {
   if (!db) { products = DEMO_PRODUCTS; return; }
   try {
@@ -128,54 +129,11 @@ async function loadProducts() {
       .select('*')
       .order('created_at', { ascending: false });
     if (!error && data) {
-      products = data.length ? data : DEMO_PRODUCTS;
+      products = data.length ? data : [];
     } else {
-      products = DEMO_PRODUCTS;
+      products = [];
     }
-  } catch(e) { products = DEMO_PRODUCTS; }
-}
-
-async function loadCategories() {
-  if (!db) return;
-  try {
-    const { data, error } = await db
-      .from('categories')
-      .select('*')
-      .order('id', { ascending: true });
-    if (!error && data && data.length) categories = data;
-  } catch(e) {}
-}
-
-async function loadSpecialConfig() {
-  if (!db) return;
-  try {
-    const { data, error } = await db
-      .from('settings')
-      .select('value')
-      .eq('key', 'special_section')
-      .single();
-    if (!error && data) {
-      specialCfg = JSON.parse(data.value);
-      localStorage.setItem('sgv_special', data.value);
-    }
-  } catch(e) {}
-}
-
-async function loadReviews() {
-  if (!db) return;
-  try {
-    const { data, error } = await db
-      .from('reviews')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error && data) {
-      reviews = {};
-      data.forEach(r => {
-        if (!reviews[r.product_id]) reviews[r.product_id] = [];
-        reviews[r.product_id].push(r);
-      });
-    }
-  } catch(e) {}
+  } catch(e) { products = []; }
 }
 
 // ══════════════════════════════════════════════════════
