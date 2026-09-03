@@ -81,13 +81,31 @@ const THEMES = {
 // ══════════════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════════════
+function safeParse(raw, fallback) {
+  try {
+    const v = JSON.parse(raw);
+    return v == null ? fallback : v;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+// Escapa texto y valores de atributo antes de inyectarlos con innerHTML
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
 let db          = null;
 let products    = [];
 let categories  = [...DEMO_CATEGORIES];
 let reviews     = {};
-let cart        = JSON.parse(localStorage.getItem('sgv_cart') || '[]');
-let favs        = JSON.parse(localStorage.getItem('sgv_fav')  || '[]');
-let specialCfg  = JSON.parse(localStorage.getItem('sgv_special') || 'null') || {...DEFAULT_SPECIAL};
+let cart        = safeParse(localStorage.getItem('sgv_cart'), []);
+let favs        = safeParse(localStorage.getItem('sgv_fav'), []);
+let specialCfg  = { ...DEFAULT_SPECIAL, ...safeParse(localStorage.getItem('sgv_special'), {}) };
+if (!Array.isArray(cart)) cart = [];
+if (!Array.isArray(favs)) favs = [];
 let isAdmin     = false;
 let currentProd = null;
 let currentRating = 0;
@@ -169,7 +187,10 @@ function applySpecialTheme() {
   // Update page title
   const pageTitle = document.getElementById('special-page-title');
   const pageDesc  = document.getElementById('special-page-desc');
-  if (pageTitle) pageTitle.innerHTML = `${specialCfg.icon} ${specialCfg.name.split(' ')[0]} <span>${specialCfg.name.split(' ').slice(1).join(' ')}</span>`;
+  if (pageTitle) {
+    const parts = String(specialCfg.name || '').split(' ');
+    pageTitle.innerHTML = `${esc(specialCfg.icon)} ${esc(parts[0])} <span>${esc(parts.slice(1).join(' '))}</span>`;
+  }
   if (pageDesc)  pageDesc.textContent = specialCfg.desc;
 
   // Render filter pills for special section
@@ -201,35 +222,35 @@ function starsHtml(id, showCount) {
 function badgeHtml(b) {
   if (!b) return '';
   const cls = b === 'Nuevo' ? 'pb-new' : b === 'Oferta' ? 'pb-sale' : 'pb-hot';
-  return `<span class="prod-badge ${cls}">${b}</span>`;
+  return `<span class="prod-badge ${cls}">${esc(b)}</span>`;
 }
 
 function adminBtns(id) {
   if (!isAdmin) return '';
   return `<div style="display:flex;gap:4px;padding:8px;border-top:1px solid var(--border)">
-    <button style="flex:1;padding:5px;background:rgba(212,245,66,.12);border:1px solid rgba(212,245,66,.25);color:var(--neon);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" data-edit="${id}">✏ Editar</button>
-    <button style="flex:1;padding:5px;background:rgba(255,45,135,.1);border:1px solid rgba(255,45,135,.25);color:var(--magenta);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" data-del="${id}">✕ Eliminar</button>
+    <button style="flex:1;padding:5px;background:rgba(212,245,66,.12);border:1px solid rgba(212,245,66,.25);color:var(--neon);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" data-edit="${esc(id)}">✏ Editar</button>
+    <button style="flex:1;padding:5px;background:rgba(255,45,135,.1);border:1px solid rgba(255,45,135,.25);color:var(--magenta);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit" data-del="${esc(id)}">✕ Eliminar</button>
   </div>`;
 }
 
 function cardHtml(p) {
   const isFav = favs.includes(p.id);
   const img   = p.image_url
-    ? `<img class="prod-img" src="${p.image_url}" alt="${p.name}" loading="lazy">`
-    : `<div class="prod-emoji-placeholder">${p.emoji || '🛍️'}</div>`;
-  return `<div class="prod-card" data-id="${p.id}">
+    ? `<img class="prod-img" src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`
+    : `<div class="prod-emoji-placeholder">${esc(p.emoji || '🛍️')}</div>`;
+  return `<div class="prod-card" data-id="${esc(p.id)}">
     <div class="img-wrap">
       ${img}
       ${badgeHtml(p.badge)}
-      <button class="fav-btn${isFav ? ' on' : ''}" data-fav="${p.id}">♥</button>
+      <button class="fav-btn${isFav ? ' on' : ''}" data-fav="${esc(p.id)}">♥</button>
     </div>
     <div class="prod-info">
-      <p class="prod-cat">${catLabel(p.category)}${p.country ? ' · ' + p.country : ''}</p>
-      <p class="prod-name">${p.name}</p>
+      <p class="prod-cat">${esc(catLabel(p.category))}${p.country ? ' · ' + esc(p.country) : ''}</p>
+      <p class="prod-name">${esc(p.name)}</p>
       ${starsHtml(p.id, false)}
       <div class="prod-footer">
         <div class="prod-price">$${Number(p.price).toFixed(2)} <small>USD</small></div>
-        <button class="add-btn" data-add="${p.id}">+ Carrito</button>
+        <button class="add-btn" data-add="${esc(p.id)}">+ Carrito</button>
       </div>
     </div>
     ${adminBtns(p.id)}
@@ -263,11 +284,11 @@ function renderSpecial() {
 function renderSpecialFilters() {
   const row = document.getElementById('special-filter-row');
   if (!row) return;
-  const filters = specialCfg.filters || [];
+  const filters = Array.isArray(specialCfg.filters) ? specialCfg.filters : [];
   if (!filters.length) { row.innerHTML = ''; return; }
   row.innerHTML =
     `<button class="flag-pill${spFilter === 'all' ? ' active' : ''}" data-sp-country="all">🌎 Todas</button>` +
-    filters.map(f => `<button class="flag-pill${spFilter === f ? ' active' : ''}" data-sp-country="${f}">${f}</button>`).join('');
+    filters.map(f => `<button class="flag-pill${spFilter === f ? ' active' : ''}" data-sp-country="${esc(f)}">${esc(f)}</button>`).join('');
 }
 
 function renderFavs() {
@@ -287,7 +308,7 @@ function renderCatPills() {
   row.innerHTML =
     `<button class="cat-pill${catFilter === 'all' ? ' active' : ''}" data-cat="all">Todos</button>` +
     categories.map(c =>
-      `<button class="cat-pill${catFilter === c.slug ? ' active' : ''}" data-cat="${c.slug}">${c.emoji} ${c.name}</button>`
+      `<button class="cat-pill${catFilter === c.slug ? ' active' : ''}" data-cat="${esc(c.slug)}">${esc(c.emoji)} ${esc(c.name)}</button>`
     ).join('');
 
   // Also update the product form category select
@@ -295,7 +316,7 @@ function renderCatPills() {
   if (sel) {
     const current = sel.value;
     sel.innerHTML = categories.map(c =>
-      `<option value="${c.slug}">${c.emoji} ${c.name}</option>`
+      `<option value="${esc(c.slug)}">${esc(c.emoji)} ${esc(c.name)}</option>`
     ).join('');
     sel.value = current;
   }
@@ -334,8 +355,8 @@ function renderCatManager() {
   if (!el) return;
   el.innerHTML = categories.map(c => `
     <div class="cat-admin-item">
-      <span>${c.emoji} ${c.name}</span>
-      <button class="cat-del-btn" data-cat-del="${c.id}">✕</button>
+      <span>${esc(c.emoji)} ${esc(c.name)}</span>
+      <button class="cat-del-btn" data-cat-del="${esc(c.id)}">✕</button>
     </div>`).join('');
 }
 
@@ -361,7 +382,7 @@ function handleSearch(val) {
   if (!val.trim()) { drop.style.display = 'none'; return; }
   const q   = val.toLowerCase();
   const res = products
-    .filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q))
+    .filter(p => (p.name || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q))
     .slice(0, 6);
   if (!res.length) {
     drop.innerHTML = '<div style="padding:12px 14px;color:var(--muted);font-size:13px">Sin resultados</div>';
@@ -369,10 +390,10 @@ function handleSearch(val) {
     return;
   }
   drop.innerHTML = res.map(p => `
-    <div class="search-item" data-search-id="${p.id}">
-      <div class="s-emoji">${p.emoji || '🛍️'}</div>
+    <div class="search-item" data-search-id="${esc(p.id)}">
+      <div class="s-emoji">${esc(p.emoji || '🛍️')}</div>
       <div>
-        <div class="s-name">${p.name}</div>
+        <div class="s-name">${esc(p.name)}</div>
         <div class="s-price">$${Number(p.price).toFixed(2)}</div>
       </div>
     </div>`).join('');
@@ -391,8 +412,8 @@ function openProduct(id) {
   document.getElementById('modal-price').textContent = '$' + Number(p.price).toFixed(2) + ' USD';
   document.getElementById('modal-desc').textContent  = p.description || 'Producto de alta calidad con acabado profesional.';
   document.getElementById('modal-img').innerHTML     = p.image_url
-    ? `<img src="${p.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:16px 0 0 16px" alt="${p.name}">`
-    : `<div style="font-size:80px">${p.emoji || '🛍️'}</div>`;
+    ? `<img src="${esc(p.image_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:16px 0 0 16px" alt="${esc(p.name)}">`
+    : `<div style="font-size:80px">${esc(p.emoji || '🛍️')}</div>`;
   document.getElementById('modal-stars').innerHTML = starsHtml(p.id, true)
     .replace('<div class="stars">', '').replace('</div>', '');
   renderRevList(p.id);
@@ -435,11 +456,12 @@ async function submitReview() {
 
   if (db) {
     try {
-      await db.from('reviews').insert({
+      const { error } = await db.from('reviews').insert({
         product_id: rev.product_id, rating: rev.rating, text: rev.text, author: rev.author
       });
+      if (error) { toast('No se pudo publicar la reseña', 'err'); return; }
       await loadReviews(); // refresh from DB
-    } catch(e) {}
+    } catch(e) { toast('No se pudo publicar la reseña', 'err'); return; }
   } else {
     if (!reviews[currentProd.id]) reviews[currentProd.id] = [];
     reviews[currentProd.id].unshift(rev);
@@ -462,18 +484,22 @@ function renderRevList(id) {
     el.innerHTML = '<p style="font-size:13px;color:var(--muted)">Sé el primero en reseñar este producto.</p>';
     return;
   }
-  el.innerHTML = rs.map(r => `
+  el.innerHTML = rs.map(r => {
+    const rating = Math.max(0, Math.min(5, parseInt(r.rating) || 0));
+    const when = r.date || (r.created_at ? new Date(r.created_at).toLocaleDateString('es-SV') : '');
+    return `
     <div class="rev-item">
       <div class="rev-meta">
         <div class="stars">
-          ${'<span class="sf">★</span>'.repeat(r.rating)}
-          ${'<span class="se">★</span>'.repeat(5 - r.rating)}
+          ${'<span class="sf">★</span>'.repeat(rating)}
+          ${'<span class="se">★</span>'.repeat(5 - rating)}
         </div>
-        <span class="rev-author">${r.author}</span>
-        <span class="rev-date">· ${r.date || ''}</span>
+        <span class="rev-author">${esc(r.author)}</span>
+        <span class="rev-date">· ${esc(when)}</span>
       </div>
-      <p class="rev-text">${r.text}</p>
-    </div>`).join('');
+      <p class="rev-text">${esc(r.text)}</p>
+    </div>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════════════════
@@ -496,7 +522,7 @@ function addToCart(id) {
   if (!p) return;
   const ex = cart.find(c => c.id == id);
   if (ex) ex.qty++;
-  else cart.push({ id: p.id, name: p.name, price: p.price, emoji: p.emoji || '🛍️', qty: 1 });
+  else cart.push({ id: p.id, name: p.name, price: Number(p.price) || 0, emoji: p.emoji || '🛍️', qty: 1 });
   localStorage.setItem('sgv_cart', JSON.stringify(cart));
   updateBadges();
   renderCart();
@@ -531,19 +557,20 @@ function renderCart() {
   em.style.display = 'none'; el.style.display = 'block'; ft.style.display = 'block';
   let total = 0;
   el.innerHTML = cart.map(c => {
-    total += c.price * c.qty;
+    const line = (Number(c.price) || 0) * c.qty;
+    total += line;
     return `<div class="cart-item">
-      <div class="ci-emoji">${c.emoji}</div>
+      <div class="ci-emoji">${esc(c.emoji)}</div>
       <div class="ci-info">
-        <div class="ci-name">${c.name}</div>
-        <div class="ci-price">$${(c.price * c.qty).toFixed(2)}</div>
+        <div class="ci-name">${esc(c.name)}</div>
+        <div class="ci-price">$${line.toFixed(2)}</div>
       </div>
       <div class="qty-row">
-        <button class="qty-btn" data-qminus="${c.id}">−</button>
+        <button class="qty-btn" data-qminus="${esc(c.id)}">−</button>
         <span class="qty-n">${c.qty}</span>
-        <button class="qty-btn" data-qplus="${c.id}">+</button>
+        <button class="qty-btn" data-qplus="${esc(c.id)}">+</button>
       </div>
-      <button class="ci-rm" data-rm="${c.id}">✕</button>
+      <button class="ci-rm" data-rm="${esc(c.id)}">✕</button>
     </div>`;
   }).join('');
   document.getElementById('cart-total').textContent = '$' + total.toFixed(2);
@@ -594,12 +621,11 @@ async function doLogin() {
   const email = document.getElementById('login-email').value;
   const pass  = document.getElementById('login-pass').value;
   if (!email || !pass) { toast('Ingresa correo y contraseña', 'err'); return; }
-  if (db) {
-    try {
-      const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
-      if (error) { toast('Credenciales incorrectas', 'err'); return; }
-    } catch(e) { toast('Error de conexión', 'err'); return; }
-  }
+  if (!db) { toast('Sin conexión al servidor', 'err'); return; }
+  try {
+    const { error } = await db.auth.signInWithPassword({ email, password: pass });
+    if (error) { toast('Credenciales incorrectas', 'err'); return; }
+  } catch(e) { toast('Error de conexión', 'err'); return; }
   isAdmin = true;
   document.getElementById('auth-btn').textContent = '👑';
   closeOverlay('authOverlay');
@@ -771,11 +797,10 @@ async function saveProd() {
 
   if (db) {
     try {
-      if (id) {
-        await db.from('products').update(prod).eq('id', id);
-      } else {
-        await db.from('products').insert(prod);
-      }
+      const { error } = id
+        ? await db.from('products').update(prod).eq('id', id)
+        : await db.from('products').insert(prod);
+      if (error) { toast('Error guardando: ' + error.message, 'err'); return; }
       // Always reload from DB after save — this fixes the refresh bug
       await loadProducts();
     } catch(e) { toast('Error guardando: ' + e.message, 'err'); return; }
@@ -799,7 +824,8 @@ async function deleteProd(id) {
   if (!confirm('¿Eliminar este producto?')) return;
   if (db) {
     try {
-      await db.from('products').delete().eq('id', id);
+      const { error } = await db.from('products').delete().eq('id', id);
+      if (error) { toast('Error eliminando: ' + error.message, 'err'); return; }
       await loadProducts();
     } catch(e) { toast('Error eliminando', 'err'); return; }
   } else {
@@ -840,11 +866,12 @@ async function saveSpecial() {
 
   if (db) {
     try {
-      await db.from('settings').upsert({
+      const { error } = await db.from('settings').upsert({
         key: 'special_section',
         value: JSON.stringify(specialCfg),
       });
-    } catch(e) {}
+      if (error) toast('Guardado local; no se pudo sincronizar con la BD', 'err');
+    } catch(e) { toast('Guardado local; no se pudo sincronizar con la BD', 'err'); }
   }
 
   closeOverlay('specialOverlay');
@@ -871,8 +898,9 @@ async function addCategory() {
   if (db) {
     try {
       const { data, error } = await db.from('categories').insert(newCat).select().single();
-      if (!error && data) { categories.push(data); }
-    } catch(e) {}
+      if (error) { toast('Error al agregar categoría', 'err'); return; }
+      if (data) categories.push(data);
+    } catch(e) { toast('Error al agregar categoría', 'err'); return; }
   } else {
     newCat.id = Date.now();
     categories.push(newCat);
@@ -888,7 +916,10 @@ async function addCategory() {
 async function deleteCategory(id) {
   if (!confirm('¿Eliminar esta categoría?')) return;
   if (db) {
-    try { await db.from('categories').delete().eq('id', id); } catch(e) {}
+    try {
+      const { error } = await db.from('categories').delete().eq('id', id);
+      if (error) { toast('Error al eliminar categoría', 'err'); return; }
+    } catch(e) { toast('Error al eliminar categoría', 'err'); return; }
   }
   categories = categories.filter(c => c.id != id);
   renderCatManager();
@@ -952,8 +983,8 @@ async function loadSpecialConfig() {
       .eq('key', 'special_section')
       .single();
     if (!error && data) {
-      specialCfg = JSON.parse(data.value);
-      localStorage.setItem('sgv_special', data.value);
+      specialCfg = { ...DEFAULT_SPECIAL, ...JSON.parse(data.value) };
+      localStorage.setItem('sgv_special', JSON.stringify(specialCfg));
     }
   } catch(e) {}
 }
